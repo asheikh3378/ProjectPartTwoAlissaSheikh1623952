@@ -1,0 +1,157 @@
+#Alissa Sheikh PSID#1623952
+import pandas as pd
+from datetime import date, datetime
+
+def isfloat(num):
+    """
+    Function that returns true if string is floating point number
+    """
+    try:
+        float(num)
+        return True
+    except ValueError:
+        return False
+
+class Student:
+    """
+    Class for representing student
+    """
+    def __init__(self, name, surname, major=None, oda=None, gpa=None, graduation_date=None):
+        self.name = name
+        self.surname = surname
+        self.major = major
+        self.oda = oda  # optional disciplinary action
+        self.gpa = gpa
+        self.graduation_date = graduation_date
+
+
+def main():
+    student_list_csv = pd.read_csv("./StudentsMajorsList.csv", header=None)
+    gpa_csv = pd.read_csv("./GPAList.csv", header=None)
+    graduation_dates_csv = pd.read_csv("./GraduationDatesList.csv", header=None)
+    # Reading lists using pandas.read_csv function with providing header=None to not read first
+    # line of input as column names
+
+    students = {}
+
+    for _, row in student_list_csv.iterrows():
+        id, surname, name, major, oda = row
+        if pd.isna(oda):
+            # Changing pandas nan to python None
+            oda = None
+        students[int(id)] = Student(name, surname, major, oda)
+        # Adding students to our dictionary
+
+    for _, row in gpa_csv.iterrows():
+        id, gpa = row
+        gpa = int(gpa)
+        if id not in students.keys():
+            raise ValueError(f"No student with id = {id} in student list.")
+        # If student not in dictionary than raising error
+        students[id].gpa = gpa
+        # Assigning gpa value for current student
+
+    for _, row in graduation_dates_csv.iterrows():
+        id, date_string = row
+        if id not in students.keys():
+            raise ValueError(f"No student with id = {id} in student list.")
+        # If student not in dictionary than raising error
+        students[id].graduation_date = datetime.strptime(date_string, "%m/%d/%Y")
+        # Assigning graduation date for current student in datetime format
+
+    while True:
+        print("Input major and gpa or 'q' for exiting the program:")
+        line = input()
+        line = line.split(" ")
+        # Splitting line by spaces
+        if len(line) == 1 and line[0] == "q":
+            exit(0)
+        # If 'q' than exiting the program
+        gpa = None
+        ok = True
+        while len(line) > 0 and isfloat(line[-1]):
+            if gpa is not None:
+                # Means were provided multiple gpa values
+                ok = False
+                # Than changing ok flag and exiting
+                break
+            gpa = float(line[-1])
+            # Getting the last value of list as gpa and popping the list
+            line.pop()
+
+        if not ok or gpa is None:
+            # If multiple gpa were given or no gpa was given than continuing the loop
+            print("No such student")
+            continue
+
+        while len(line) > 0 and not line[0][0].isupper():
+            line.pop(0)
+            # Removing all unnecessary starting names which are lowercase
+
+        major = " ".join(line)
+
+        # In this point we have successfully gathered major and gpa from input string
+
+        major_students = []
+
+        for id, student in students.items():
+            if student.major == major:
+                major_students.append((id, student))
+            # Appending all students with current major
+
+        if len(major_students) == 0:
+            # If no student found than exiting
+            print("No such student")
+            continue
+
+        current_students = sorted(major_students, key=lambda pair: abs(pair[1].gpa - gpa))
+        # Sorting all students with their differences with provided gpa
+
+        your_students = []
+        also_consider = []
+        others = []
+
+        for id, student in current_students:
+            gpa_diff = abs(student.gpa - gpa)
+            if student.oda is not None or (student.graduation_date is not None and
+                                           datetime.now() >= student.graduation_date):
+                continue
+                # If student has optional disciplinary action or has already graduates than continuing
+            if gpa_diff <= 0.1:
+                your_students.append((id, student))
+                # If diff is smaller than 0.1 appending to 'your_students'
+            elif gpa_diff <= 0.25:
+                also_consider.append((id, student))
+                # Elif diff is smaller than 0.25 appending to 'also_consider'
+            else:
+                others.append((id, student))
+                # Else appending to 'others'
+
+        is_student = False
+        if len(your_students) > 0:
+            is_student = True
+            print("Your student(s):")
+            for id, student in your_students:
+                # Print all the students of list
+                print(f"id = {id}, first name = {student.name}, last name = {student.surname}, gpa = {student.gpa}")
+        if len(also_consider) > 0:
+            is_student = True
+            print("Your may, also, consider:")
+            for id, student in also_consider:
+                # Print all the also_consider students
+                print(f"id = {id}, first name = {student.name}, last name = {student.surname}, gpa = {student.gpa}")
+
+        if not is_student:
+            if len(others) == 0:
+                # If no student is available printing about it and exiting
+                print("No such student")
+            else:
+                # Else printing the closest one
+                print("No student with your provided GPA but the closest one is:")
+                id, student = others[0]
+                print(f"id = {id}, first name = {student.name}, last name = {student.surname}, gpa = {student.gpa}")
+
+
+if __name__ == "__main__":
+    main()
+    
